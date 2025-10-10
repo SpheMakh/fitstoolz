@@ -25,7 +25,7 @@ class FitsData:
         self.coords = xr.Coordinates()
         self.open_arrays = []
         self.data = da.asarray(self.phdu.data)
-        self.data_units = self.header.get("BUNIT", "jy").lower().strip()
+        self.data_units = self.header.get("BUNIT", "Jy").strip()
         
         if self.dshape != self.wcs.array_shape:
             raise RuntimeError("Input FITS file WCS information does not match Image data")
