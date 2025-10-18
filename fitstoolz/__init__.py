@@ -1,4 +1,8 @@
 import logging
+from importlib import metadata
+
+__version__ = metadata.version(__package__)
+
 
 def get_logger(name, level="INFO"):
 
