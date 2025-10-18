@@ -1,6 +1,6 @@
 [project]
 name = "fitstoolz"
-version = "0.0.1b1"
+version = "0.0.1b2"
 description = "Python libraries for interfacing with FITS data in an intuitive way"
 authors = [
     {name="Sphesihle Makhathini", email="sphemakh@gmail.com"},
@@ -56,3 +56,4 @@ dev = [
 Documentation = "https://fitstoolz.readthedocs.org"
 Repository = "https://github.com/caracal-pipeline/fitstoolz.git"
 "Issue Tracker" = "https://github.com/caracal-pipeline/fitstoolz/issues"
+
