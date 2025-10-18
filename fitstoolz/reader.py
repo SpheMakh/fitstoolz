@@ -189,13 +189,15 @@ class FitsData:
         dec_scale = self.header[f"CDELT{self.ndim - ra_idx}"]
             
         grid_zero = self.wcs.celestial.array_index_to_world_values([0],[0])
-        
-        ra_grid = da.linspace(grid_zero[0], grid_zero[0] + ra_scale*ra_dimsize, ra_dimsize)
-        dec_grid = da.linspace(grid_zero[1], grid_zero[1] + dec_scale*dec_dimsize, dec_dimsize)
-        
+
+        ra_grid = np.linspace(grid_zero[0], grid_zero[0] + ra_scale*ra_dimsize,
+                            ra_dimsize).squeeze()
+        dec_grid = np.linspace(grid_zero[1], grid_zero[1] + dec_scale*dec_dimsize,
+                            dec_dimsize).squeeze()
+
         self.coords[ra_dim] = ("celestial.ra",), ra_grid
         self.set_coord_attrs(ra_dim, "celestial.ra")
-        
+
         self.coords[dec_dim] = ("celestial.dec",), dec_grid
         self.set_coord_attrs(dec_dim, "celestial.dec")
 
