@@ -7,6 +7,7 @@ import os
 import uuid
 from fitstoolz.reader import FitsData
 
+import .tests as tests
 
 class TestExapndFits(unittest.TestCase):
     def setUp(self):
@@ -70,10 +71,9 @@ class TestExapndFits(unittest.TestCase):
             image[:, self.img_size//2, self.img_size//2] = stokes[1] # put a point source at the center
             # write to FITS file
             hdu = fits.PrimaryHDU(image, header=header)
-            test_filename = f'test_{uuid.uuid4()}_{stokes[0]}.fits'
+            test_filename = f'{TESTDIR}/test_{uuid.uuid4()}_{stokes[0]}.fits'
             self.test_files.append(test_filename)
             hdu.writeto(test_filename, overwrite=True)
-            
         
             filenames.append(test_filename)
             

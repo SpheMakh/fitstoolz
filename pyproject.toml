@@ -24,6 +24,9 @@ dependencies = [
 [project.optional-dependencies]
 zarr = ["zarr>=2.12.0"]
 
+[tool.hatch.build.targets.sdist]
+include = ["fitstoolz"]
+
 [tool.hatch.build.targets.wheel]
 include = ["fitstoolz"]
 
