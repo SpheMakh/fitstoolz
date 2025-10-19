@@ -7,37 +7,34 @@ import os
 import uuid
 from fitstoolz.reader import FitsData
 
-import .tests as tests
+TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
 class TestExapndFits(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         
-        self.ra0 = 0.0
-        self.dec0 = np.deg2rad(-30.0)
-        self.ncorr = 2
-        self.start_freq = 1.3e9
-        self.nchan = 5
-        self.dfreq = 1e6
+        cls.ra0 = 0.0
+        cls.dec0 = np.deg2rad(-30.0)
+        cls.ncorr = 2
+        cls.start_freq = 1.3e9
+        cls.nchan = 5
+        cls.dfreq = 1e6
 
         # image parameters
-        self.img_size = 256
-        self.cell_size = 3e-6  # arcsec
+        cls.img_size = 256
+        cls.cell_size = 3e-6  # arcsec
         
-        
-        self.test_files = []
+        cls.test_files = []
         # Set up logging level
-        self.original_log_level = log.level
+        cls.original_log_level = log.level
         
-    def tearDown(self):
+    @classmethod
+    def tearDown(cls):
         """Clean up after each test method runs."""
         # Remove any temporary files created
-        for file in self.test_files:
+        for file in cls.test_files:
             if os.path.exists(file):
                 os.remove(file)
-        
-        # Reset logging level
-        log.setLevel(self.original_log_level)
-
 
     def test_fits_predicting_all_stokes_linear_basis(self):
         """
@@ -61,7 +58,6 @@ class TestExapndFits(unittest.TestCase):
             wcs.wcs.crpix = [self.img_size//2, self.img_size//2, 1] # reference pixel
             wcs.wcs.crval = [np.rad2deg(self.ra0), np.rad2deg(self.dec0), self.start_freq] # reference pixel RA and Dec in deg
             
-            
             # make header
             header = wcs.to_header()
             header['BUNIT'] = 'Jy'
@@ -71,11 +67,14 @@ class TestExapndFits(unittest.TestCase):
             image[:, self.img_size//2, self.img_size//2] = stokes[1] # put a point source at the center
             # write to FITS file
             hdu = fits.PrimaryHDU(image, header=header)
+            hdul = fits.HDUList([hdu])
             test_filename = f'{TESTDIR}/test_{uuid.uuid4()}_{stokes[0]}.fits'
             self.test_files.append(test_filename)
-            hdu.writeto(test_filename, overwrite=True)
-        
+            hdul.writeto(test_filename, overwrite=True)
+            hdul.close()
+            
             filenames.append(test_filename)
+            
             
         fname = filenames[0]
         fnames_quv = filenames[1:]
