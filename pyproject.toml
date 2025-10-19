@@ -31,7 +31,7 @@ include = ["fitstoolz"]
 include = ["fitstoolz"]
 
 [project.scripts]
-fitstoolz = "fitstoolz.scripts:cli"
+fitstoolz = "fitstoolz.scripts.main:cli"
 
 
 [dependency-groups]
