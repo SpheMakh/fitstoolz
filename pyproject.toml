@@ -53,10 +53,11 @@ docs = [
 dev = [
     "jupyter",
     "matplotlib",
+    "pre-commit>=4.3.0",
+    "ruff>=0.12.9",
 ]
 
 [project.urls]
 Documentation = "https://fitstoolz.readthedocs.org"
 Repository = "https://github.com/caracal-pipeline/fitstoolz.git"
 "Issue Tracker" = "https://github.com/caracal-pipeline/fitstoolz/issues"
-
