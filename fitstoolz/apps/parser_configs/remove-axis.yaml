@@ -1,0 +1,15 @@
+libs:
+  base:
+    _include:
+    - (fitstoolz.apps.parser_configs)base.yaml
+
+inputs:
+  _use:
+  - libs.base.inputs
+  ctype:
+    info: Axis type (or dimension). FREQ, STOKES, etc.
+    dtype: str
+    
+outputs:
+  _use:
+  - libs.base.outputs

@@ -1,0 +1,29 @@
+libs:
+  base:
+    _include: (fitstoolz.apps.parser_configs)base.yaml
+  remove_axis:
+    _include: (fitstoolz.apps.parser_configs)remove-axis.yaml
+
+inputs:
+  _use:
+  - libs.remove_axis.inputs
+  ctype:
+    info: Axis type; FREQ, STOKES, etc.
+    dtype: str
+  crpix:
+    info: Reference pixel (zero-based indexing)
+    dtype: int
+  crval:
+    info: Value at Reference pixel (crval)
+    dtype: float|int
+  cdelt:
+    info: Pixel width
+  naxis:
+    info: Axis size in pixels
+  cunits:
+    info: Units (astropy naming convention)
+    dtype: str
+
+outputs:
+  _use:
+  - libs.base.outputs

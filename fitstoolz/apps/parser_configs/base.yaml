@@ -1,0 +1,17 @@
+inputs:
+  fname:
+    info: Input file(s)
+    dtype: File
+    required: true
+    policies:
+      positional: true
+  replace:
+    info: Overwrite output if it exists
+    dtype: bool
+    policies:
+      is_flag: true
+
+outputs:
+  outfile:
+    info: Path of output image 
+    dtype: File

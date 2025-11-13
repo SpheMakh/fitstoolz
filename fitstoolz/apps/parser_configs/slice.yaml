@@ -1,0 +1,17 @@
+libs:
+  base:
+    _include: (fitstoolz.apps.parser_configs)base.yaml
+
+inputs:
+  _use:
+  - libs.base.inputs
+  axis:
+    info: Axis slicing info
+    dtype: List[Any]
+    metavar: CTYPE,START,END
+    policies:
+      repeat: repeat
+
+outputs:
+  _use:
+  - libs.base.outputs

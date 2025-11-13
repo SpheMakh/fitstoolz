@@ -1,0 +1,34 @@
+libs:
+  base:
+    _include: (fitstoolz.apps.parser_configs)base.yaml
+
+inputs:
+  _use:
+  - libs.base.inputs
+  axis:
+    info: Unstack the files along this axis
+    dtype: str
+  memmap:
+    info: memmap option to parse to astropy.io.fits.open()
+    dtype: bool
+    default: true
+  ra-chunks:
+    info: RA chunking
+    dtype: int
+    default: 0
+  dec-chunks:
+    info: Dec chunking
+    dtype: int
+    default: 0
+  spectral-chunks:
+    info: spectral chunking
+    dtype: int
+    default: 0
+  temporal-chunks:
+    info: RA chunking
+    dtype: int
+    default: 0
+
+outputs:
+  _use:
+  - libs.base.outputs

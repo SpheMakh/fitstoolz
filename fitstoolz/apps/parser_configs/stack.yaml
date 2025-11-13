@@ -1,0 +1,12 @@
+libs:
+  base:
+    _include: (fitstoolz.apps.parser_configs)base.yaml 
+  unstack: 
+    _include: (fitstoolz.apps.parser_configs)unstack.yaml
+
+inputs:
+  _use:
+  - libs.unstack.inputs
+outputs:
+  _use:
+  - libs.base.outputs
