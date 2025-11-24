@@ -4,15 +4,14 @@ import importlib
 import click
 
 
-class LazyGroup(click.Group):
-    def __init__(self, *args, lazy_subcommands=None, parent_module=None, **kwargs):
+class LazyClickGroup(click.Group):
+    def __init__(self, *args, lazy_subcommands=None, **kwargs):
         super().__init__(*args, **kwargs)
         # lazy_subcommands is a map of the form:
         #
         #   {command-name} -> {module-name}.{command-object-name}
         #
         self.lazy_subcommands = lazy_subcommands or {}
-        self.parent_module = parent_module
 
     def list_commands(self, ctx):
         base = super().list_commands(ctx)
@@ -29,14 +28,10 @@ class LazyGroup(click.Group):
         import_path = self.lazy_subcommands[cmd_name]
         modname, cmd_object_name = import_path.rsplit(".", 1)
         # do the import
-        import_prefix = f"{self.parent_module}." if self.parent_module else ""
-        mod = importlib.import_module(import_prefix+modname)
+        mod = importlib.import_module(modname)
         # get the Command object from that module
         cmd_object = getattr(mod, cmd_object_name)
         # check the result to make debugging easier
         if not isinstance(cmd_object, click.Command):
-            raise ValueError(
-                f"Lazy loading of {import_path} failed by returning "
-                "a non-command object"
-            )
+            raise ValueError(f"Lazy loading of {import_path} failed by returning a non-command object")
         return cmd_object

@@ -27,6 +27,7 @@ class FitsData:
         self.coord_names = self.wcs.axis_type_names[::-1]
         self.coords = xr.Coordinates()
         self.open_arrays = []
+        self.spectral_coord = None
         self.data = da.asarray(self.phdu.data)
         self.data_units = self.header.get("BUNIT", "Jy").strip()
 
@@ -50,6 +51,8 @@ class FitsData:
 
     @property
     def nchan(self):
+        if self.spectral_coord is None:
+            return 0
         return self.coords[self.spectral_coord].size
 
     @property
@@ -181,10 +184,9 @@ class FitsData:
         ra_dimsize = self.dshape[ra_idx]
         dec_dimsize = self.dshape[dec_idx]
         ra_scale = self.header[f"CDELT{self.ndim - ra_idx}"]
-        dec_scale = self.header[f"CDELT{self.ndim - ra_idx}"]
+        dec_scale = self.header[f"CDELT{self.ndim - dec_idx}"]
 
         grid_zero = self.wcs.celestial.array_index_to_world_values([0], [0])
-
         ra_grid = np.linspace(grid_zero[0], grid_zero[0] + ra_scale * ra_dimsize, ra_dimsize).squeeze()
         dec_grid = np.linspace(grid_zero[1], grid_zero[1] + dec_scale * dec_dimsize, dec_dimsize).squeeze()
 
@@ -222,44 +224,46 @@ class FitsData:
             .value
         )
 
-    def add_axis(self, name: str, idx: int, coord_type: str, axis_grid: np.ndarray, attrs: Dict):
+    def add_axis(self, name: str, idx: int, crval: float, cdelt: float, crpix: int, cunit: str):
         """Add a new axis to FITS data
 
         Args:
             name (str): Name of new axis. e.g, STOKES, RA, DEC
-            idx (int): index where new axis must be added
-            coord_type (str): Axis type (e.g, stokes, spectral)
-            axis_grid (np.ndarray): coordinate grid of new axis
-            attrs (Dict): Pixel meta data. Example: dict(name='STOKES', pixel_size=1, ref_pixel=0,
-                        size=1, units=None, dim='stokes')
+            idx (int): FITS-style index where new axis is added (1-based, NAXISn convention)
+            crval (float): Value at reference pixel
+            cdelt (float): Pixel width
+            crpix (int): Reference pixel
+            cunit (str): Units (astropy naming convention)
 
         Raises:
             RuntimeError: Dimensions not matching after axis was added
         """
+        idx_py = self.ndim - idx + 1
         slc = [slice(None)] * (self.ndim + 1)
-        slc[idx] = da.newaxis
+        slc[idx_py] = da.newaxis
         self.data = self.data[tuple(slc)]
 
-        naxis = self.ndim - idx
-        crpix = attrs["ref_pixel"]
-        self.header.update(
-            {
-                f"CDELT{naxis}": attrs["pixel_size"],
-                f"CRPIX{naxis}": crpix + 1,  # FITS files are 1-based indexing
-                f"CUNIT{naxis}": attrs.get("units", ""),
-                f"CRVAL{naxis}": da.compute(axis_grid[crpix])[0],
-                f"CTYPE{naxis}": name,
-                f"NAXIS{naxis}": 1,
-                "NAXIS": self.ndim,
-            }
-        )
+        for n in range(self.ndim, idx, -1):
+            for key in ("NAXIS", "CTYPE", "CRPIX", "CRVAL", "CDELT", "CUNIT"):
+                old_val = self.header.pop(f"{key}{n - 1}", None)
+                if old_val is not None:
+                    self.header[f"{key}{n}"] = old_val
+
+        self.header[f"NAXIS{idx}"] = 1
+        self.header[f"CTYPE{idx}"] = name
+        self.header[f"CRPIX{idx}"] = crpix
+        self.header[f"CRVAL{idx}"] = crval
+        self.header[f"CDELT{idx}"] = cdelt
+        self.header[f"CUNIT{idx}"] = cunit
+        self.header["NAXIS"] = self.ndim
+
         self.wcs = WCS(self.header)
         self.dim_info = self.wcs.get_axis_types()[::-1]
-        self.coord_names.insert(idx, name)
+        self.coord_names = self.wcs.axis_type_names[::-1]
         self.__register_dimensions()
 
         if len(self.coord_names) != self.ndim:
-            raise RuntimeError(f"New axis '{name}' could not added")
+            raise RuntimeError(f"New axis '{name}' could not be added")
 
     def expand_along_axis(self, name: str, data: np.ndarray, beams: Table = None):
         """
@@ -327,7 +331,7 @@ class FitsData:
 
         nbeams = len(beam_table)
 
-        if nbeams == 1 and self.coords[self.spectral_coord].size > 1:
+        if nbeams == 1 and self.spectral_coord and self.coords[self.spectral_coord].size > 1:
             if self.spectral_coord == "VRAD":
                 freqs = self.get_freq_from_vrad()
             elif self.spectral_coord == "VOPT":
@@ -350,14 +354,6 @@ class FitsData:
             beam_table = Table(new_table)
 
         self.beam_table = beam_table
-
-    @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, value):
-        self._data = value
 
     def get_data(self, data_slice=None) -> np.ndarray:
         if data_slice:
@@ -407,7 +403,19 @@ class FitsData:
 
         return xds.chunk(dim_chunks)
 
-    def write_to_fits(self, fname: File, coord_names: list[str], data_slice: List[Any] = [], chunks: Dict = {}):
+    def build_chunks(self, ra_chunks=None, dec_chunks=None, spectral_chunks=None):
+        chunks = {}
+        if ra_chunks is not None:
+            chunks["RA"] = ra_chunks
+        if dec_chunks is not None:
+            chunks["DEC"] = dec_chunks
+        if spectral_chunks is not None and self.spectral_coord:
+            chunks[self.spectral_coord] = spectral_chunks
+        return chunks
+
+    def write_to_fits(
+        self, fname: File, coord_names: list[str] = None, data_slice: List[Any] = None, chunks: Dict = None
+    ):
         """Write FitsData object into a FITS file
 
         Args:
@@ -419,34 +427,46 @@ class FitsData:
             chunks (Dict|Mapping): How to chunk data when writing to disk
         """
 
+        coord_names = coord_names or self.coord_names
+        data_slice = data_slice or []
+        chunks = chunks or {}
+        out_ndim = len(coord_names)
+
+        header = fits.Header(self.header)
+        header["NAXIS"] = out_ndim
+        # Remove stale keywords from dimensions beyond out_ndim
+        for n_extra in range(out_ndim + 1, self.ndim + 1):
+            for key in ("NAXIS", "CTYPE", "CRPIX", "CRVAL", "CDELT", "CUNIT"):
+                header.pop(f"{key}{n_extra}", None)
+
         for i, coord in enumerate(coord_names):
-            idx = self.ndim - i
+            idx = out_ndim - i
 
             cdelt = self.coords[coord].pixel_size
             crpix = self.coords[coord].ref_pixel
             cunit = self.coords[coord].units
             crval = da.compute(self.coords[coord].data[crpix])
 
-            header = fits.Header(self.header)
-            opts = {
-                f"CDELT{idx}": cdelt,
-                f"CRPIX{idx}": crpix + 1,
-                f"CUNIT{idx}": cunit,
-                f"CRVAL{idx}": crval,
-            }
-            header.update(opts)
+            header.update(
+                {
+                    f"CDELT{idx}": cdelt,
+                    f"CRPIX{idx}": crpix + 1,
+                    f"CUNIT{idx}": cunit,
+                    f"CRVAL{idx}": crval,
+                }
+            )
         xds = self.get_xds(data_slice, coord_names, chunks)
         phdu = fits.PrimaryHDU(xds.data, header=header)
 
         phdu.writeto(fname, overwrite=True)
 
-    def __close__(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
         self.hdulist.close()
         for data in self.open_arrays:
             del data
 
     def close(self):
-        self.__close__()
-
-    def __exit__(self):
-        self.__close__()
+        self.__exit__()

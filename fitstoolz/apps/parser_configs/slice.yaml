@@ -1,16 +1,20 @@
 libs:
-  base:
-    _include: (fitstoolz.apps.parser_configs)base.yaml
+  _include: (fitstoolz.apps.parser_configs)base.yaml
 
 inputs:
   _use:
   - libs.base.inputs
+  - libs.chunking.inputs
   axis:
     info: Axis slicing info
     dtype: List[Any]
     metavar: CTYPE,START,END
     policies:
       repeat: repeat
+  memmap:
+    info: memmap option to pass to astropy.io.fits.open()
+    dtype: bool
+    default: true
 
 outputs:
   _use:

@@ -6,8 +6,10 @@ import pytest
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fitstoolz import LOG as log
+from fitstoolz import set_logger
 from fitstoolz.reader import FitsData
+
+log = set_logger("fitstoolz")
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -86,11 +88,5 @@ class TestExpandAlongDim:
         fnames_quv = filenames[1:]
         myfits = FitsData(fname)
 
-        myfits.add_axis(
-            "STOKES",
-            0,
-            "stokes",
-            axis_grid=[1],
-            attrs=dict(ref_pixel=0, pixel_size=1, units="Jy", dim="stokes"),
-        )
+        myfits.add_axis("STOKES", idx=4, crval=1, cdelt=1, crpix=1, cunit="Jy")
         myfits.expand_along_axis_from_files("STOKES", fnames_quv)

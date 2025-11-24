@@ -24,7 +24,7 @@ def runit(**kwargs):
         outfile = opts.fname
 
     if outfile is None:
-        raise RuntimeError("Neither --replace or --outfile is not set. Cannot add/remove/edit.")
+        raise RuntimeError("Neither --replace nor --outfile is set. Cannot add/remove/edit.")
 
     updates = {}
     hdul = fits.open(opts.fname)

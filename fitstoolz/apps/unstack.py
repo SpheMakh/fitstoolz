@@ -10,5 +10,4 @@ app = "unstack"
 @click.command(app)
 @clickify_parameters(get_app_config(app))
 def runit(**kwargs):
-    opts = OmegaConf(kwargs)
-    opts.fname
+    OmegaConf.create(kwargs)

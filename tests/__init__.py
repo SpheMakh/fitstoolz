@@ -2,9 +2,13 @@ import os.path
 import shutil
 import tempfile
 
+import numpy as np
+from astropy.io import fits
 from astropy.utils.data import download_file
+from astropy.wcs import WCS
 
 TESTDIR = os.path.abspath(os.path.dirname(__file__))
+
 
 class InitTest:
     def __init__(self):
@@ -36,6 +40,34 @@ class InitTest:
 
         self.test_files.append(name)
         return name
+
+    def example_fits_file(self):
+        pix_size = 5 / 3600
+        npix = 128
+        dfreq = 1e6
+        freq0 = 1.4e9
+        nchan = 2
+        wcs = WCS(naxis=3)
+        wcs.wcs.ctype = ["RA---SIN", "DEC--SIN", "FREQ"]
+        wcs.wcs.cdelt = np.array([-pix_size, pix_size, dfreq])
+        wcs.wcs.crpix = [npix / 2, npix / 2, 1]
+        wcs.wcs.crval = [2.0, -30, freq0]
+        wcs.wcs.cunit = ["deg", "deg", "Hz"]
+
+        # make header
+        header = wcs.to_header()
+
+        # make image
+        image = np.random.randn(nchan, npix, npix).astype(np.float32)
+        # put a point source at the center
+        # write to FITS file
+        hdu = fits.PrimaryHDU(image, header=header)
+        hdul = fits.HDUList([hdu])
+        test_filename = self.random_named_file(".fits")
+        hdul.writeto(test_filename, overwrite=True)
+        hdul.close()
+
+        return test_filename
 
     def __del__(self):
         for path in getattr(self, "test_files", []):

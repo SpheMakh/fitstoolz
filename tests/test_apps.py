@@ -1,45 +1,175 @@
+import numpy as np
 import pytest
+from astropy.io import fits
+from astropy.wcs import WCS
 from click.testing import CliRunner
 
+from fitstoolz.apps import get_app_config, outfits_name
 from fitstoolz.apps import main as main_group
+from fitstoolz.reader import FitsData
 
 from . import InitTest
 
 
 @pytest.fixture
-def config():    
+def config():
     return InitTest()
 
 
 def test_help_display():
     runner = CliRunner()
-    result = runner.invoke(main_group.cli, ["--help"])
+    result = runner.invoke(main_group.cli, "--help")
     assert result.exit_code == 0
     for app in main_group.app_dict:
-        result = runner.invoke(main_group.cli, [app, "--help"])
+        result = runner.invoke(main_group.cli, f"{app} --help")
         assert result.exit_code == 0
 
 
-def test_header(config):
-    image_file = config.astropy_example_image()
+def test_header(config: InitTest):
+    image_file = config.example_fits_file()
     runner = CliRunner()
 
-    result = runner.invoke(main_group.cli,
-                f"header --show {image_file}".split())
+    result = runner.invoke(main_group.cli, f"header --show {image_file}")
     assert result.exit_code == 0
 
     outfits = config.random_named_file(suffix=".fits")
-    result = runner.invoke(main_group.cli,
-                f"header --add Foo=bar --outfile {outfits} {image_file}")
+    result = runner.invoke(main_group.cli, f"header --add Foo=bar --outfile {outfits} {image_file}")
 
     assert result.exit_code == 0
 
-    result = runner.invoke(main_group.cli,
-                f"header --edit Foo=23 --outfile {outfits} {image_file}")
-    
+    result = runner.invoke(main_group.cli, f"header --edit Foo=23 --outfile {outfits} {image_file}")
+
     assert result.exit_code == 0
-    
-    result = runner.invoke(main_group.cli,
-                f"header --remove Foo --replace {outfits}")
-    
+
+    result = runner.invoke(main_group.cli, f"header --remove Foo --replace {outfits}")
+
     assert result.exit_code == 0
+
+
+def test_header_no_outfile_error(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"header --add Foo=bar {image_file}")
+    assert result.exit_code != 0
+
+
+def test_add_remove_axis(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+
+    result = runner.invoke(
+        main_group.cli,
+        f"add-axis --ctype STOKES --index 4 --crpix 1 --crval 1 --cdelt 1 --cunit Jy --replace {image_file}",
+    )
+    assert result.exit_code == 0
+
+    myfits = FitsData(image_file)
+    assert myfits.ndim == 4
+    assert "STOKES" in myfits.coord_names
+    myfits.close()
+    result = runner.invoke(main_group.cli, f"remove-axis --ctype STOKES --replace {image_file}")
+    assert result.exit_code == 0
+
+    myfits = FitsData(image_file)
+    assert myfits.ndim == 3
+    assert "STOKES" not in myfits.coord_names
+    myfits.close()
+
+
+def test_add_axis_duplicate_error(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+
+    result = runner.invoke(
+        main_group.cli,
+        f"add-axis --ctype FREQ --index 4 --crpix 1 --crval 1 --cdelt 1 --cunit Hz --replace {image_file}",
+    )
+    assert result.exit_code != 0
+
+
+def test_remove_axis_missing_error(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"remove-axis --ctype NOEXIST --replace {image_file}")
+    assert result.exit_code != 0
+
+
+def test_stats(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"stats {image_file}")
+    assert result.exit_code == 0
+
+
+def test_slice(config: InitTest):
+    image_file = config.example_fits_file()
+    outfits = config.random_named_file(suffix=".fits")
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"slice --outfile {outfits} {image_file}")
+    assert result.exit_code == 0
+
+    myfits = FitsData(outfits)
+    assert myfits.ndim == 3
+    myfits.close()
+
+
+def test_stack(config: InitTest):
+    pix_size = 5 / 3600
+    npix = 128
+    dfreq = 1e6
+    freq0 = 1.4e9
+    wcs = WCS(naxis=3)
+    wcs.wcs.ctype = ["RA---SIN", "DEC--SIN", "FREQ"]
+    wcs.wcs.cdelt = np.array([-pix_size, pix_size, dfreq])
+    wcs.wcs.crpix = [npix / 2, npix / 2, 1]
+    wcs.wcs.crval = [2.0, -30, freq0]
+    wcs.wcs.cunit = ["deg", "deg", "Hz"]
+    header = wcs.to_header()
+
+    filenames = []
+    for nchan in [2, 3]:
+        image = np.random.randn(nchan, npix, npix).astype(np.float32)
+        hdu = fits.PrimaryHDU(image, header=header)
+        hdul = fits.HDUList([hdu])
+        fname = config.random_named_file(suffix=".fits")
+        hdul.writeto(fname, overwrite=True)
+        hdul.close()
+        filenames.append(fname)
+
+    outfits = config.random_named_file(suffix=".fits")
+    runner = CliRunner()
+    result = runner.invoke(
+        main_group.cli, f"stack --axis FREQ --stacked-fits {outfits} --extra-files {filenames[1]} {filenames[0]}"
+    )
+    assert result.exit_code == 0
+
+    myfits = FitsData(outfits)
+    assert myfits.ndim == 3
+    assert myfits.dshape[0] == 5
+    myfits.close()
+
+
+def test_outfits_name_outfile():
+    result = outfits_name("/in.fits", "/out.fits")
+    assert result == "/out.fits"
+
+
+def test_outfits_name_replace():
+    result = outfits_name("/in.fits", None, replace=True)
+    assert result == "/in.fits"
+
+
+def test_outfits_name_raise():
+    with pytest.raises(RuntimeError, match="Both --replace and --outfile"):
+        outfits_name("/in.fits", None, raise_exception=True)
+
+
+def test_outfits_name_none():
+    result = outfits_name("/in.fits", None)
+    assert result is None
+
+
+def test_get_app_config():
+    cfg = get_app_config("header")
+    assert "inputs" in cfg
+    assert "fname" in cfg.inputs

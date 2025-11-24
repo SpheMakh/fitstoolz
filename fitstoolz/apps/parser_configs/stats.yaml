@@ -1,7 +1,5 @@
 libs:
-  base:
-    _include:
-    - (fitstoolz.apps.parser_configs)base.yaml
+  _include: (fitstoolz.apps.parser_configs)base.yaml
 
 inputs:
   _use:

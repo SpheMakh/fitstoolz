@@ -1,14 +1,19 @@
 libs:
-  base:
-    _include:
-    - (fitstoolz.apps.parser_configs)base.yaml
+  _include: (fitstoolz.apps.parser_configs)base.yaml
 
 inputs:
   _use:
   - libs.base.inputs
+  - libs.chunking.inputs
   ctype:
     info: Axis type (or dimension). FREQ, STOKES, etc.
     dtype: str
+    abbreviation: ct
+  select-index:
+    info: Keep data at this index (zero-basec). For example, if removing the frequency axis, this would the channel to keep.
+    dtype: int
+    default: 0
+    abbreviation: si
     
 outputs:
   _use:
