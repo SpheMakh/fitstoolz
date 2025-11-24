@@ -1,13 +1,15 @@
 import click
 
+from .lazy_group import LazyGroup
 
-@click.group()
+applist = "remove_axis add_axis unstack stack slice stats header".split()
+app_dict = dict([(name.replace("_","-"), f"{name}.runit") for name in applist])
+
+@click.group(
+        cls=LazyGroup,
+        lazy_subcommands=app_dict, 
+        parent_module="fitstoolz.apps"
+)
 def cli():
     pass
 
-
-applist = "remove_axis add_axis unstack stack slice stats header".split()
-apps = __import__("fitstoolz.apps", fromlist=applist)
-
-for app in applist:
-    cli.add_command(getattr(apps, app).runit)

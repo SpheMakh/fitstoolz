@@ -39,16 +39,10 @@ def runit(**kwargs):
             key, strval = keyval.split("=")
             key = key.strip()
             strval = strval.strip()
-            val = None
 
             try:
-                val = int(strval)
+                val = int(strval) if strval.isdigit() else float(strval)
             except ValueError:
-                val = float(strval)
-            except ValueError:
-                pass
-
-            if val is None:
                 val = strval
 
             updates[key] = val
