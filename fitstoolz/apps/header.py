@@ -41,9 +41,12 @@ def runit(**kwargs):
             strval = strval.strip()
 
             try:
-                val = int(strval) if strval.isdigit() else float(strval)
+                val = int(strval)
             except ValueError:
-                val = strval
+                try:
+                    val = float(strval)
+                except ValueError:
+                    val = strval
 
             updates[key] = val
         hdul[0].header.update(updates)

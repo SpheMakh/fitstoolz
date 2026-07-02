@@ -11,3 +11,4 @@ app = "unstack"
 @clickify_parameters(get_app_config(app))
 def runit(**kwargs):
     OmegaConf.create(kwargs)
+    raise click.ClickException("'unstack' is not yet implemented")

@@ -390,7 +390,9 @@ class FitsData:
         # Create a new coordinate instance to ensure alignment with the data
         coords = xr.Coordinates()
         for coord in self.coord_names:
-            coords[coord] = self.coords[coord]
+            coord_dim = self.coords[coord].attrs["dim"]
+            if coord_dim in dim_transpose:
+                coords[coord] = self.coords[coord]
 
         xds = xr.DataArray(
             data,
@@ -441,14 +443,17 @@ class FitsData:
 
         for i, coord in enumerate(coord_names):
             idx = out_ndim - i
+            orig_idx = self.coord_index(coord)
 
             cdelt = self.coords[coord].pixel_size
             crpix = self.coords[coord].ref_pixel
             cunit = self.coords[coord].units
             crval = da.compute(self.coords[coord].data[crpix])[0]
+            ctype = self.header.get(f"CTYPE{self.ndim - orig_idx}", coord)
 
             header.update(
                 {
+                    f"CTYPE{idx}": ctype,
                     f"CDELT{idx}": cdelt,
                     f"CRPIX{idx}": crpix + 1,
                     f"CUNIT{idx}": cunit,

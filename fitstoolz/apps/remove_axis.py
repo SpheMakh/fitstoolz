@@ -19,7 +19,7 @@ def runit(ctx, **kwargs):
     outfits = outfits_name(opts.fname, opts.outfile, opts.replace, raise_exception=True)
 
     with FitsData(fname=opts.fname, memmap=True) as myfits:
-        coord_names = myfits.coord_names
+        coord_names = list(myfits.coord_names)
         if opts.ctype not in coord_names:
             raise ValueError(f"Unknown axis '{opts.ctype}'. Existing axes are: {coord_names}")
 
