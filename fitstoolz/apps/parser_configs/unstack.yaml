@@ -1,0 +1,14 @@
+libs:
+  _include: (fitstoolz.apps.parser_configs)base.yaml
+
+inputs:
+  _use:
+  - libs.base.inputs
+  - libs.chunking.inputs
+  axis:
+    info: Unstack the files along this axis
+    dtype: str
+
+outputs:
+  _use:
+  - libs.base.outputs

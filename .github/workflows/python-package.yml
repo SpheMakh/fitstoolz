@@ -33,4 +33,4 @@ jobs:
       run: |
         ruff format --check --diff
     - name: Test with pytest
-      run: pytest tests/*_tests.py
+      run: pytest -q

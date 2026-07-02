@@ -4,15 +4,19 @@ from importlib import metadata
 __version__ = metadata.version(__package__)
 
 
-def get_logger(name, level="INFO"):
+def set_logger(name, level="INFO"):
     if isinstance(level, str):
         level = getattr(logging, level, 10)
 
-    format_string = "%(asctime)s-%(name)s-%(levelname)-8s| %(message)s"
-    # set up logging to file - see previous section for more details
-    logging.basicConfig(level=level, format=format_string, datefmt="%m:%d %H:%M:%S")
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    return logging.getLogger(name)
+    if not logger.handlers:
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
 
+        formatter = logging.Formatter("%(asctime)s-%(name)s-%(levelname)-8s| %(message)s")
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
 
-LOG = get_logger("fitstoolz")
+    return logger

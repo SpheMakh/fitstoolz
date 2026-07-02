@@ -1,0 +1,25 @@
+libs:
+  _include: (fitstoolz.apps.parser_configs)base.yaml
+
+inputs:
+  _use:
+  - libs.base.inputs
+  show:
+    info: Show min, max, mean and standard deviation
+    dtype: bool
+  slice:
+    info: Slice data
+    dtype: List[str]
+  clip-below:
+    info: Blank pixels below this value
+    dtype: int|float
+  clip-above:
+    info: Blank pixels above this value
+    dtype: int|float
+  blank-value:
+    info: Blank value when using --clip-below/above. The values 'inf' and 'nan' are valid blank values.
+    dtype: int|float
+
+outputs:
+  _use:
+  - libs.base.outputs

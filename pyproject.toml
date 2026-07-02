@@ -24,6 +24,13 @@ dependencies = [
 [project.optional-dependencies]
 zarr = ["zarr>=2.12.0"]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.sdist]
 include = ["fitstoolz"]
 
@@ -31,7 +38,7 @@ include = ["fitstoolz"]
 include = ["fitstoolz"]
 
 [project.scripts]
-fitstoolz = "fitstoolz.scripts.main:cli"
+fitstoolz = "fitstoolz.apps.main:cli"
 
 
 

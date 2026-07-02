@@ -1,7 +1,32 @@
+from typing import List
+
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+from astropy.wcs import WCS
 from scabha.basetypes import File
+
+
+def reorder_wcs(wcs, old_order: List[str], new_order: List[str]) -> WCS:
+    """Reorder wcs axes
+
+    Args:
+        wcs (astropy.wcs.WCS): WCS object to reorder
+        old_order (List[str]): Old order
+        new_order (List[str]): New order
+
+    Returns:
+        astropy.wcs.WCS: Reordered WCS
+    """
+    wcs_keys = "crval crpix cdelt cunit ctype".split()
+    new_wcs = WCS(naxis=wcs.naxis)
+
+    for key in wcs_keys:
+        for ndx, axis in enumerate(new_order):
+            odx = old_order.index(axis)
+            getattr(new_wcs.wcs, key)[ndx] = getattr(wcs.wcs, key)[odx]
+
+    return new_wcs
 
 
 def get_beam_table(fname: File):
