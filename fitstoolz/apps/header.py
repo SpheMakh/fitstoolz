@@ -36,7 +36,7 @@ def runit(**kwargs):
             keyvals = opts.add
 
         for keyval in keyvals:
-            key, strval = keyval.split("=")
+            key, strval = keyval.split("=", 1)
             key = key.strip()
             strval = strval.strip()
 

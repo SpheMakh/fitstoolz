@@ -88,5 +88,5 @@ class TestExpandAlongDim:
         fnames_quv = filenames[1:]
         myfits = FitsData(fname)
 
-        myfits.add_axis("STOKES", idx=4, crval=1, cdelt=1, crpix=1, cunit="Jy")
+        myfits.add_axis("STOKES", idx=4, crval=1, cdelt=1, crpix=0, cunit="Jy")
         myfits.expand_along_axis_from_files("STOKES", fnames_quv)

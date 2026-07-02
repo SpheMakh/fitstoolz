@@ -59,7 +59,7 @@ def test_add_remove_axis(config: InitTest):
 
     result = runner.invoke(
         main_group.cli,
-        f"add-axis --ctype STOKES --index 4 --crpix 1 --crval 1 --cdelt 1 --cunit Jy --replace {image_file}",
+        f"add-axis --ctype STOKES --index 4 --crpix 0 --crval 1 --cdelt 1 --cunit Jy --replace {image_file}",
     )
     assert result.exit_code == 0
 
@@ -82,7 +82,7 @@ def test_add_axis_duplicate_error(config: InitTest):
 
     result = runner.invoke(
         main_group.cli,
-        f"add-axis --ctype FREQ --index 4 --crpix 1 --crval 1 --cdelt 1 --cunit Hz --replace {image_file}",
+        f"add-axis --ctype FREQ --index 4 --crpix 0 --crval 1 --cdelt 1 --cunit Hz --replace {image_file}",
     )
     assert result.exit_code != 0
 

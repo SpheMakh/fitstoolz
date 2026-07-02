@@ -251,7 +251,7 @@ class FitsData:
 
         self.header[f"NAXIS{idx}"] = 1
         self.header[f"CTYPE{idx}"] = name
-        self.header[f"CRPIX{idx}"] = crpix
+        self.header[f"CRPIX{idx}"] = crpix + 1
         self.header[f"CRVAL{idx}"] = crval
         self.header[f"CDELT{idx}"] = cdelt
         self.header[f"CUNIT{idx}"] = cunit
@@ -445,7 +445,7 @@ class FitsData:
             cdelt = self.coords[coord].pixel_size
             crpix = self.coords[coord].ref_pixel
             cunit = self.coords[coord].units
-            crval = da.compute(self.coords[coord].data[crpix])
+            crval = da.compute(self.coords[coord].data[crpix])[0]
 
             header.update(
                 {

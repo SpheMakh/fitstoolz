@@ -24,7 +24,7 @@ class InitTest:
         if not hasattr(self, "test_files"):
             self.test_files = []
 
-        file_obj = tempfile.NamedTemporaryFile(suffix=suffix, dir=TESTDIR, delete_on_close=False)
+        file_obj = tempfile.NamedTemporaryFile(suffix=suffix, dir=TESTDIR, delete=False)
         name = file_obj.name
         file_obj.close()
 
