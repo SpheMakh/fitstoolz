@@ -11,8 +11,8 @@ from datetime import date
 import fitstoolz
 
 author = "Sphesihle Makhathini"
-maintainer = "Mika Naidoo, Athanesus Ramaila"
-project = "simms"
+maintainer = "Mika Naidoo, Athanaseus Ramaila"
+project = "fitstoolz"
 copyright = f"{date.today().year}, {author}"
 
 release = fitstoolz.__version__
