@@ -31,6 +31,7 @@ jobs:
         python -m pip install --group tests
     - name: Lint with ruff
       run: |
+        ruff check .
         ruff format --check --diff
     - name: Test with pytest
-      run: pytest -q
+      run: pytest -q --cov=fitstoolz --cov-report=term-missing
