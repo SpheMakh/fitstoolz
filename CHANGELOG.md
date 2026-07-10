@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 major version is zero, a minor bump may carry breaking changes.
 
-## [0.1.0] — 2026-07-10
+## [0.1.0b3] — 2026-07-10
 
 First release since the package was restructured around `FitsData`. It corrects the
 celestial coordinate grids, which were wrong in three compounding ways, and takes test
@@ -95,4 +95,4 @@ Coverage rose from 84% to 99% (`reader.py` 79% → 99%, `utils.py` 88% → 98%,
 77 tests. astropy's WCS is the reference throughout: the coordinate grids are asserted
 against `wcs_pix2world` rather than against themselves.
 
-[0.1.0]: https://github.com/sphemakh/fitstoolz/releases/tag/v0.1.0
+[0.1.0b3]: https://github.com/SpheMakh/fitstoolz/releases/tag/v0.1.0b3
