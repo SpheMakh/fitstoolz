@@ -13,4 +13,4 @@ The latest version can be installed directly from github by using:
     
 .. code-block:: bash
 
-    pip install git@https://github.com/caracal-pipeline/fitstoolz
+    pip install git+https://github.com/SpheMakh/fitstoolz
