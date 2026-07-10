@@ -29,6 +29,25 @@ def reorder_wcs(wcs, old_order: List[str], new_order: List[str]) -> WCS:
     return new_wcs
 
 
+def beam_unit(header) -> units.Unit:
+    """
+    Unit of the BMAJ/BMIN/BPA header keywords.
+
+    These are angles, conventionally in degrees. The first axis' CUNIT is only
+    honoured when it is itself an angle, since a cube may lead with a spectral
+    or Stokes axis.
+    """
+    cunit = str(header.get("CUNIT1", "")).strip()
+    if cunit:
+        try:
+            unit = units.Unit(cunit)
+        except ValueError:
+            unit = None
+        if unit is not None and unit.physical_type == "angle":
+            return unit
+    return units.deg
+
+
 def get_beam_table(fname: File):
     fname = File(fname)
     if not fname.EXISTS:
@@ -56,7 +75,10 @@ def get_beam_table(fname: File):
     if isinstance(beam_table, Table):
         return beam_table
 
-    bunit = getattr(units, header["CUNIT1"].lower().strip())
+    if header.get("BMAJ1", None) is None and header.get("BMAJ", None) is None:
+        return False
+
+    bunit = beam_unit(header)
     chan = 1
 
     while header.get(f"BMAJ{chan}", None) is not None:

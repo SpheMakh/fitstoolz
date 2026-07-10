@@ -173,3 +173,53 @@ def test_get_app_config():
     cfg = get_app_config("header")
     assert "inputs" in cfg
     assert "fname" in cfg.inputs
+
+
+def test_stats_show_slice_and_clipping(config: InitTest):
+    """Exercise --show, --slice and both clip options with an explicit blank value."""
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(
+        main_group.cli,
+        f"stats --show --slice FREQ,0,1 --clip-below -0.5 --clip-above 0.5 --blank-value 0 {image_file}",
+    )
+    assert result.exit_code == 0, result.output
+
+
+def test_stats_clipping_defaults_to_nan_blank(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"stats --show --clip-below 0 {image_file}")
+    assert result.exit_code == 0, result.output
+
+
+def test_stats_unknown_slice_axis_errors(config: InitTest):
+    image_file = config.example_fits_file()
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"stats --slice TIME,0,1 {image_file}")
+    assert result.exit_code != 0
+    assert isinstance(result.exception, ValueError)
+    assert "Unknown axis 'TIME'" in str(result.exception)
+
+
+def test_slice_along_the_spectral_axis(config: InitTest):
+    """--axis CTYPE,START,END must trim the cube."""
+    image_file = config.example_fits_file()  # (2, 128, 128)
+    outfits = config.random_named_file(suffix=".fits")
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"slice --axis FREQ,0,1 --outfile {outfits} {image_file}")
+    assert result.exit_code == 0, result.output
+
+    myfits = FitsData(outfits)
+    assert myfits.dshape[0] == 1
+    myfits.close()
+
+
+def test_slice_unknown_axis_errors(config: InitTest):
+    image_file = config.example_fits_file()
+    outfits = config.random_named_file(suffix=".fits")
+    runner = CliRunner()
+    result = runner.invoke(main_group.cli, f"slice --axis TIME,0,1 --outfile {outfits} {image_file}")
+    assert result.exit_code != 0
+    assert isinstance(result.exception, ValueError)
+    assert "Unknown axis 'TIME'" in str(result.exception)

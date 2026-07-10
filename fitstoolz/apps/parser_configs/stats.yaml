@@ -9,16 +9,19 @@ inputs:
     dtype: bool
   slice:
     info: Slice data
-    dtype: List[str]
+    dtype: List[Any]
+    metavar: CTYPE,START,END
+    policies:
+      repeat: repeat
   clip-below:
     info: Blank pixels below this value
-    dtype: int|float
+    dtype: float
   clip-above:
     info: Blank pixels above this value
-    dtype: int|float
+    dtype: float
   blank-value:
     info: Blank value when using --clip-below/above. The values 'inf' and 'nan' are valid blank values.
-    dtype: int|float
+    dtype: float
 
 outputs:
   _use:

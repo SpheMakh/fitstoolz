@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
+from astropy import units
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from fitstoolz.utils import get_beam_table, reorder_wcs
+from fitstoolz.utils import beam_unit, get_beam_table, reorder_wcs
 
 from . import InitTest
 
@@ -99,3 +100,81 @@ def test_get_beam_table_header(config: InitTest):
 def test_get_beam_table_missing_file():
     with pytest.raises(FileNotFoundError):
         get_beam_table("/nonexistent/file.fits")
+
+
+def _celestial_header(cunit1="deg"):
+    pix_size = 5 / 3600
+    wcs = WCS(naxis=3)
+    wcs.wcs.ctype = ["RA---SIN", "DEC--SIN", "FREQ"]
+    wcs.wcs.cdelt = np.array([-pix_size, pix_size, 1e6])
+    wcs.wcs.crpix = [32, 32, 1]
+    wcs.wcs.crval = [2.0, -30, 1.4e9]
+    wcs.wcs.cunit = [cunit1, "deg", "Hz"]
+    return wcs.to_header()
+
+
+def test_beam_unit_defaults_to_deg_for_a_non_angle_first_axis():
+    """Regression: getattr(units, 'hz') raised AttributeError for a FREQ-leading cube."""
+    header = fits.Header()
+    header["CUNIT1"] = "Hz"
+    assert beam_unit(header) == units.deg
+
+    header["CUNIT1"] = "not-a-unit"
+    assert beam_unit(header) == units.deg
+
+    del header["CUNIT1"]
+    assert beam_unit(header) == units.deg
+
+
+def test_beam_unit_honours_an_angular_first_axis():
+    header = fits.Header()
+    header["CUNIT1"] = "arcsec"
+    assert beam_unit(header) == units.arcsec
+
+
+def test_get_beam_table_without_any_beam_returns_false(config: InitTest):
+    """A cube leading with a spectral axis and carrying no beam must not raise."""
+    header = fits.Header()
+    header["CTYPE1"], header["CRVAL1"], header["CDELT1"], header["CRPIX1"], header["CUNIT1"] = (
+        "FREQ",
+        1.4e9,
+        1e6,
+        1,
+        "Hz",
+    )
+    header["CTYPE2"], header["CRVAL2"], header["CDELT2"], header["CRPIX2"] = "STOKES", 1, 1, 1
+    fname = config.random_named_file(suffix=".fits")
+    fits.PrimaryHDU(np.zeros((2, 4), np.float32), header=header).writeto(fname, overwrite=True)
+    assert get_beam_table(fname) is False
+
+
+def test_get_beam_table_per_channel_header_keywords(config: InitTest):
+    """BMAJ1/BMIN1/BPA1, BMAJ2/... describe a beam per channel."""
+    header = _celestial_header()
+    for chan, (bmaj, bmin, bpa) in enumerate([(0.3, 0.15, 10.0), (0.2, 0.1, 20.0), (0.1, 0.05, 30.0)], start=1):
+        header[f"BMAJ{chan}"], header[f"BMIN{chan}"], header[f"BPA{chan}"] = bmaj, bmin, bpa
+
+    fname = config.random_named_file(suffix=".fits")
+    fits.PrimaryHDU(np.zeros((3, 64, 64), np.float32), header=header).writeto(fname, overwrite=True)
+
+    result = get_beam_table(fname)
+    assert result is not False
+    assert len(result) == 3
+    np.testing.assert_allclose(np.asarray(result["BMAJ"]), [0.3, 0.2, 0.1])
+    assert result["BMAJ"].unit == units.deg
+    np.testing.assert_array_equal(result["CHAN"], [0, 1, 2])
+    np.testing.assert_array_equal(result["POL"], [0, 0, 0])
+
+
+def test_bintable_beam_takes_precedence_over_header_keywords(config: InitTest):
+    from astropy.table import Table
+
+    header = _celestial_header()
+    header["BMAJ"], header["BMIN"], header["BPA"] = 0.9, 0.9, 0.0
+    beam_hdu = fits.BinTableHDU(Table({"BMAJ": [0.1], "BMIN": [0.05], "BPA": [30.0]}))
+    fname = config.random_named_file(suffix=".fits")
+    fits.HDUList([fits.PrimaryHDU(np.zeros((1, 64, 64), np.float32), header=header), beam_hdu]).writeto(
+        fname, overwrite=True
+    )
+    result = get_beam_table(fname)
+    assert result["BMAJ"][0] == 0.1

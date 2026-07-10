@@ -31,8 +31,15 @@ class FitsData:
         self.data = da.asarray(self.phdu.data)
         self.data_units = self.header.get("BUNIT", "Jy").strip()
 
-        if self.dshape != self.wcs.array_shape:
-            raise RuntimeError("Input FITS file WCS information does not match Image data")
+        # astropy drops trailing axes with no NAXISn from array_shape, so an
+        # over-declared WCSAXES slips past a shape comparison alone and only
+        # surfaces later as an IndexError against coord_names.
+        if self.wcs.naxis != self.data.ndim or self.dshape != self.wcs.array_shape:
+            raise RuntimeError(
+                f"Input FITS file WCS information does not match Image data: "
+                f"WCS describes {self.wcs.naxis} axes {self.wcs.array_shape}, data has "
+                f"{self.data.ndim} axes {self.dshape}"
+            )
 
         self.__register_dimensions()
         self.__register_beam_table()
@@ -105,7 +112,6 @@ class FitsData:
         for idx, coord in enumerate(names):
             diminfo = self.dim_info[idx]
             dim = diminfo["coordinate_type"]
-            dtype = diminfo["group"]
 
             if dim == "celestial":
                 if celestial_already_set:
@@ -121,13 +127,12 @@ class FitsData:
                 self.set_stokes_dimensions(coord)
                 continue
 
-            dimsize = self.dshape[idx]
-            try:
-                dimgrid = getattr(self.wcs, dim).array_index_to_world_values(da.arange(dimsize))
-            except AttributeError:
-                dimgrid = da.empty(dimsize, dtype=dtype)
-
-            self.coords[coord] = (dim,), dimgrid
+            # Anything left is an axis astropy could not classify (a linear or
+            # blank CTYPE): coordinate_type is None and there is no sub-WCS to
+            # evaluate. Fall back to pixel indices, naming the dimension after
+            # the axis itself.
+            dim = (dim or coord or f"axis{idx}").lower()
+            self.coords[coord] = (dim,), da.arange(self.dshape[idx])
             self.set_coord_attrs(coord, dim)
 
     def set_stokes_dimensions(self, coord_name: str):
@@ -163,11 +168,17 @@ class FitsData:
 
     def set_celestial_dimensions(self):
         """
-        set celestial coordinates data using the FITS WCS infomation
+        Set celestial coordinate grids from the FITS WCS information.
 
-        Args:
-            empty (bool, optiona): Set the coordinate grids as an empty array. Defaults to True.
+        The sky grid is not separable under a projection: the longitude of a
+        pixel depends on its latitude and vice versa. A one-dimensional
+        coordinate array is therefore only meaningful along a principal axis,
+        so each axis is sampled through the reference pixel of the other by
+        evaluating the WCS. Stepping a grid by ``CDELT`` instead would be wrong
+        by ``1/cos(dec)`` for the longitude axis, since ``CDELT`` is an angle on
+        the sky rather than a coordinate increment.
         """
+        ra_idx = dec_idx = None
         for idx, diminfo in enumerate(self.dim_info):
             dim = diminfo["coordinate_type"]
             dim_number = diminfo["number"]
@@ -179,16 +190,34 @@ class FitsData:
                 else:
                     raise ValueError(f"Unkown celestial dimension in WCS: {dim_number}")
 
-        ra_dim = self.wcs.axis_type_names[::-1][ra_idx]
-        dec_dim = self.wcs.axis_type_names[::-1][dec_idx]
+        if ra_idx is None or dec_idx is None:
+            raise RuntimeError("FITS WCS does not define a pair of celestial axes")
+
+        ra_dim = self.coord_names[ra_idx]
+        dec_dim = self.coord_names[dec_idx]
         ra_dimsize = self.dshape[ra_idx]
         dec_dimsize = self.dshape[dec_idx]
-        ra_scale = self.header[f"CDELT{self.ndim - ra_idx}"]
-        dec_scale = self.header[f"CDELT{self.ndim - dec_idx}"]
 
-        grid_zero = self.wcs.celestial.array_index_to_world_values([0], [0])
-        ra_grid = np.linspace(grid_zero[0], grid_zero[0] + ra_scale * ra_dimsize, ra_dimsize).squeeze()
-        dec_grid = np.linspace(grid_zero[1], grid_zero[1] + dec_scale * dec_dimsize, dec_dimsize).squeeze()
+        celestial = self.wcs.celestial
+        # Indices of the longitude and latitude axes within the celestial WCS,
+        # which need not be in (longitude, latitude) order.
+        lng, lat = celestial.wcs.lng, celestial.wcs.lat
+        lng_refpix = celestial.wcs.crpix[lng] - 1  # CRPIX is 1-based
+        lat_refpix = celestial.wcs.crpix[lat] - 1
+
+        ra_pixels = np.empty((ra_dimsize, 2))
+        ra_pixels[:, lng] = np.arange(ra_dimsize)
+        ra_pixels[:, lat] = lat_refpix
+        ra_grid = celestial.wcs_pix2world(ra_pixels, 0)[:, lng]
+
+        dec_pixels = np.empty((dec_dimsize, 2))
+        dec_pixels[:, lng] = lng_refpix
+        dec_pixels[:, lat] = np.arange(dec_dimsize)
+        dec_grid = celestial.wcs_pix2world(dec_pixels, 0)[:, lat]
+
+        # Keep the longitude monotonic across the 0/360 wrap.
+        if celestial.wcs.cunit[lng] == "deg":
+            ra_grid = np.unwrap(ra_grid, period=360.0)
 
         self.coords[ra_dim] = ("celestial.ra",), ra_grid
         self.set_coord_attrs(ra_dim, "celestial.ra")
@@ -387,12 +416,14 @@ class FitsData:
 
         data = da.asarray(self.data[tuple(data_slice)])
 
-        # Create a new coordinate instance to ensure alignment with the data
+        # Create a new coordinate instance to ensure alignment with the data.
+        # Each coordinate must be cut by the same slice as its data axis,
+        # otherwise xarray rejects the mismatched dimension lengths.
         coords = xr.Coordinates()
-        for coord in self.coord_names:
+        for idx, coord in enumerate(self.coord_names):
             coord_dim = self.coords[coord].attrs["dim"]
             if coord_dim in dim_transpose:
-                coords[coord] = self.coords[coord]
+                coords[coord] = self.coords[coord][data_slice[idx]]
 
         xds = xr.DataArray(
             data,
